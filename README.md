@@ -9,12 +9,21 @@
 * Pytorch 1.2.0+cu92
 * CUDA 10.1
 * Sigle RTX-2080Ti (11G)
+
 ---
 ## Algorithm & Concept
-img1
-img2
-img3
+* The main target of unsupervised learning is to learn effective visual representation without human supervision.
+* To acheive the goal, some pretext tasks are designed for networks to slove, and features are learn by objective functions.
+* Features learned from models are transferred to downstream tasks for great performance.
+* In this paper, they use examplar pretext task based on contrastive learning which have been recently shown great promise, achieving state-of-theart results in the field.
 
+Now, we're talking about how the algorithm works.
+First, consider there are 2 image one is a cat, and the other is an airplane. Cat is transformed into 2 images with different augmentation (random crop, random color distortion, etc.), so is the airplane. Those images then are converted by the model into visual features in high dimension feature space, e.g., 2048.From the designed loss function, the model decrease the distance between 2 cats (or 2 planes) while increase the distance between cats and airplane. The following visualize the process of the algorithm.
+
+![figure1-1](https://github.com/majic83626/SimCLR-cifar10/blob/master/img/SimCLR_1.png)
+![figure1-2](https://github.com/majic83626/SimCLR-cifar10/blob/master/img/simCLR_3.PNG)
+
+---
 
 ## Note!!
 * This experiment work on only single GPU, we use "accumulating loss"
