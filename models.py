@@ -1,7 +1,6 @@
 # vae model
 import torch
 import torch.nn as nn
-import torchvision.models as models
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
@@ -19,7 +18,7 @@ class BasicBlock(nn.Module):
     expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
-                 base_width=64, dilation=1, norm_layer=None, norm_moment=1e-9):
+                 base_width=64, dilation=1, norm_layer=None, norm_moment=0.9):
         super(BasicBlock, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
@@ -65,7 +64,7 @@ class Bottleneck(nn.Module):
     expansion = 4
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
-                 base_width=64, dilation=1, norm_layer=None, norm_moment=1e-9):
+                 base_width=64, dilation=1, norm_layer=None, norm_moment=0.9):
         super(Bottleneck, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
@@ -108,7 +107,7 @@ class ResNet(nn.Module):
 
     def __init__(self, block, layers, num_classes=10, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
-                 norm_layer=None, norm_moment=1e-9):
+                 norm_layer=None, norm_moment=0.9):
         super(ResNet, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
@@ -171,7 +170,7 @@ class ResNet(nn.Module):
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
                 conv1x1(self.inplanes, planes * block.expansion, stride),
-                norm_layer(planes * block.expansion),
+                norm_layer(planes * block.expansion, momentum=0.9),
             )
 
         layers = []
@@ -219,8 +218,12 @@ def Resnet18(**kwargs):
     return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], **kwargs)
 
 
+def Resnet34(**kwargs):
+    return _resnet('resnet34', BasicBlock, [3, 4, 6, 3], **kwargs)
+
+
 class Projector(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, norm_moment=1e-9):
+    def __init__(self, input_size, hidden_size, output_size, norm_moment=0.9):
         super().__init__()
         self.project_layer = nn.Sequential(
             nn.Linear(input_size, hidden_size),
@@ -248,5 +251,5 @@ class Linear_Classifier(nn.Module):
 
 
 if __name__ == "__main__":
-    model = Resnet18()
+    model = Resnet34()
     print(model)
