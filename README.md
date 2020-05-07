@@ -49,4 +49,6 @@ First, consider there are 2 image one is a cat, and the other is an airplane. Ca
         |class.txt
   
   ```
+  More detail is provided in doc, or you can download cifar10 [here](https://drive.google.com/drive/folders/1uQdcWh2wbDFzCgNiseiWjv1GwSWim0np?usp=sharing) (has been organized as the above struture)
+
 
