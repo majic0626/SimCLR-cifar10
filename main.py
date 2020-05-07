@@ -204,7 +204,7 @@ if __name__ == "__main__":
     # ========== [cnn model] ==========
     model = Resnet18()
     model.to(device)
-    g = Projector(input_size=2048, hidden_size=512, output_size=128)
+    g = Projector(input_size=512, hidden_size=512, output_size=128)
     g.to(device)
 
     # ========== [optim for cnn] ==========
@@ -226,7 +226,7 @@ if __name__ == "__main__":
         Train_CNN(ep=i)
         record_saver(record_cnn, dir_log + '/' + "cnn.txt")
         if (i % 20) == 0:
-            linear_clf = Linear_Classifier(input_size=2048, classNum=10)
+            linear_clf = Linear_Classifier(input_size=512, classNum=10)
             linear_clf.to(device)
             opt_clf = optim.SGD(linear_clf.parameters(),
                                 lr=5e-3,
