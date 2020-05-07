@@ -6,7 +6,7 @@ from dataset import ImageDataset
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from config import args
-from models import ResNet, Projector, Linear_Classifier
+from models import Resnet18, Projector, Linear_Classifier
 from criterions import NTXEntLoss
 from helper import visualize, adjust_lr, adjust_linear_lr, LARC
 
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # ========== [cnn model] ==========
-    model = ResNet(pretrain=False)
+    model = Resnet18()
     model.to(device)
     g = Projector(input_size=2048, hidden_size=512, output_size=128)
     g.to(device)
