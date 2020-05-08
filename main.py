@@ -11,14 +11,10 @@ from criterions import NTXEntLoss
 from helper import visualize, adjust_lr, adjust_linear_lr, LARC
 
 
-def Train_CNN(ep):
+def Train_CNN():
     model.train()
-    lr_ = adjust_lr(opt=opt_cnn, epoch=ep, lr_init=lr, T=epoch, warmup=10)
     train_loss = 0.0
     opt_cnn.zero_grad()
-    print("========== [Unsupervised Training] ==========")
-    print("[epoch {}]".format(ep))
-    print("[lr {}]".format(lr_))
     for ix, (sample1, sample2) in enumerate(trainloader):
         data_i, data_j = sample1["image"], sample2["image"]
         data_i, data_j = data_i.to(device), data_j.to(device)
@@ -39,16 +35,12 @@ def Train_CNN(ep):
     record_cnn["train_loss"].append(train_loss * accum / (ix + 1))
 
 
-def Train_CLF(ep):
+def Train_CLF():
     model.eval()
     linear_clf.train()
-    lr_ = adjust_linear_lr(opt=opt_clf, epoch=ep, lr_init=1e-2, lr_end=0, T=100)
     train_loss = 0.0
     correct = 0
     total = 0
-    print("========== [Supervised Training] ==========")
-    print("[epoch {}]".format(ep))
-    print("[lr {}]".format(lr_))
     for ix, (sample1, sample2) in enumerate(Linear_trainloader):
         opt_clf.zero_grad()
         data, label = sample1["image"], sample1["label"]
@@ -69,14 +61,13 @@ def Train_CLF(ep):
     record_clf["train_acc"].append(100 * correct / total)
 
 
-def Test_CLF(path):
+def Test_CLF():
     model.eval()
     linear_clf.eval()
     total = 0
     correct = 0
     test_loss = 0.0
     global best_acc
-    print("========== [Supervised Testing] ==========")
     with torch.no_grad():
         for ix, (sample1, sample2) in enumerate(Linear_testloader):
             data, label = sample1["image"], sample1["label"]
@@ -92,10 +83,7 @@ def Test_CLF(path):
                                                  100 * correct / total))
         record_clf["test_loss"].append(test_loss / (ix + 1))
         record_clf["test_acc"].append(100 * correct / total)
-    if 100 * correct / total > best_acc:
-        print("save the best model!")
-        best_acc = 100 * correct / total
-        torch.save({"cnn": model.state_dict(), "clf": linear_clf.state_dict()}, path)
+    return 100 * correct / total
 
 
 def record_saver(record, path):
@@ -108,8 +96,10 @@ if __name__ == "__main__":
     for arg in vars(args):
         print(arg, '===>', getattr(args, arg))
     lr = args.lr
+    clf_lr = args.clf_lr
     batch_size = args.batch
     epoch = args.epoch
+    clf_epoch = args.clf_epoch
     classNum = args.classNum
     temp = args.temperature
     data_root = args.data_root
@@ -122,6 +112,14 @@ if __name__ == "__main__":
     accum = args.accumulate
     aug_s = args.strength
     useLARS = args.useLARS
+    decay = args.weight_decay
+    momentnum = args.momentnum
+    warm = args.warmup
+    project_in = args.pro_in
+    project_hidden = args.pro_hidden
+    project_out = args.pro_out
+    linear_in = args.linear_in
+    eval_routine = args.eval_routine
     record_cnn = {"train_loss": []}
     record_clf = {"train_loss": [],
                   "train_acc": [],
@@ -170,9 +168,8 @@ if __name__ == "__main__":
 
     Linear_trainloader = DataLoader(
         Linear_trainset,
-        batch_size=128,
+        batch_size=256,
         shuffle=True,
-        drop_last=True,
         num_workers=num_worker
     )
 
@@ -189,7 +186,7 @@ if __name__ == "__main__":
 
     Linear_testloader = DataLoader(
         Linear_testset,
-        batch_size=128,
+        batch_size=256,
         shuffle=False,
         num_workers=num_worker
     )
@@ -204,15 +201,15 @@ if __name__ == "__main__":
     # ========== [cnn model] ==========
     model = Resnet18()
     model.to(device)
-    g = Projector(input_size=512, hidden_size=512, output_size=128)
+    g = Projector(input_size=project_in, hidden_size=project_hidden, output_size=project_out)
     g.to(device)
 
     # ========== [optim for cnn] ==========
     opt_cnn = optim.SGD(
         list(model.parameters()) + list(g.parameters()),
         lr=lr,
-        momentum=0.9,
-        weight_decay=1e-6
+        momentum=momentnum,
+        weight_decay=decay
     )
 
     criterion1 = NTXEntLoss(temp=temp)
@@ -220,19 +217,34 @@ if __name__ == "__main__":
 
     if useLARS:
         opt_cnn = LARC(opt_cnn)  # LARS on SGD optimizer
-    best_acc = 0.0
 
+    best_acc = 0.0
     for i in range(1, epoch + 1):
-        Train_CNN(ep=i)
+        print("========== [Unsupervised Training] ==========")
+        print("[epoch {}/{}]".format(i, epoch))
+        print("[lr {}]".format(adjust_lr(opt=opt_cnn, epoch=i, lr_init=lr, T=epoch, warmup=warm)))
+        Train_CNN()
         record_saver(record_cnn, dir_log + '/' + "cnn.txt")
-        if (i % 20) == 0:
-            linear_clf = Linear_Classifier(input_size=512, classNum=10)
+        if (i % eval_routine) == 0:
+            linear_clf = Linear_Classifier(input_size=linear_in, classNum=classNum)
             linear_clf.to(device)
             opt_clf = optim.SGD(linear_clf.parameters(),
-                                lr=5e-3,
-                                momentum=0.9,
+                                lr=clf_lr,
+                                momentum=momentnum,
                                 )
-            for j in range(1, 50 + 1):
-                Train_CLF(ep=j)
-                Test_CLF(path=dir_ckpt + '/' + "best.pt")
+            if useLARS:
+                opt_clf = LARC(opt_clf)
+            for j in range(1, clf_epoch + 1):
+                print("========== [Supervised Training] ==========")
+                print("[epoch {}/{}]".format(j, clf_epoch))
+                print("[lr {}]".format(adjust_linear_lr(opt=opt_clf, epoch=j, lr_init=clf_lr, T=clf_epoch)))
+                Train_CLF()
+                print("========== [Supervised Testing] ==========")
+                test_acc = Test_CLF()
+                print("save the last model: {} || best model: {}".format(test_acc, best_acc))
+                torch.save({"cnn": model.state_dict(), "clf": linear_clf.state_dict(), "epoch": j}, dir_ckpt + '/' + "last.pt")
                 record_saver(record_clf, dir_log + '/' + "clf.txt")
+                if test_acc > best_acc:
+                    best_acc = test_acc
+                    print("save the best model: {}".format(best_acc))
+                    torch.save({"cnn": model.state_dict(), "clf": linear_clf.state_dict(), "epoch": j}, dir_ckpt + '/' + "best.pt")
