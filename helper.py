@@ -48,7 +48,7 @@ def adjust_lr(opt, epoch, lr_init, T, warmup=10, lr_end=1e-5):
     return lr
 
 
-def adjust_linear_lr(opt, epoch, lr_init, lr_end, T):
+def adjust_linear_lr(opt, epoch, lr_init, T, lr_end=0):
     lr = lr_init - (lr_init - lr_end) * sin((pi / 2) * (epoch - 1) / (T - 1))
     for param_group in opt.param_groups:
         param_group['lr'] = lr
